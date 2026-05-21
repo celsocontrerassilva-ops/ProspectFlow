@@ -1481,7 +1481,12 @@ async function loadNewLeads() {
   if (empty) empty.style.display = 'none';
 
   try {
-    const json = await fetchJSONP(url + '&callback=__lhcb');
+    const res = await fetch(SHEETS_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({action: 'getLeads', url: url})
+    });
+    const json = await res.json();
     const rows = json.rows || [];
 
     if (!rows.length) {
