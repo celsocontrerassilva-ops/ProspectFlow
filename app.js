@@ -8,7 +8,8 @@ function doLogin() {
   const pass = (document.getElementById('loginPass')?.value || '').trim();
   const errorEl = document.getElementById('loginError');
 
-  if (user === 'admin' && pass === 'prospect2026') {
+  const USERS = {'admin':'prospect2026','celso':'L@isa0108'};
+  if (USERS[user] && USERS[user] === pass) {
     localStorage.setItem('avp_auth', '1');
     document.getElementById('loginScreen').style.display = 'none';
     initApp();
@@ -36,7 +37,7 @@ let clients = [];
 let pendingDeleteId = null;
 let editingClientId = null;
 let importBuffer = [];
-let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyZf24czl6NmPS6AcckMat8B8ZnQkdsRdpty-77jEbB1rPhCRJqGyzOb49GNuZBgqI/exec';
+let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwrFqkHR8d8A1w8CfQarSps010sauhpzxklfQB_qksreIH0sIR4FtAeTJFsnUPO9xM/exec';
 
 // ---- EVOLUTION API CONFIG ----
 const EVOLUTION_URL = 'https://evolution-api-production-da04e.up.railway.app';
@@ -51,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
   // Sempre usa URL do código — ignora localStorage
-  SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyZf24czl6NmPS6AcckMat8B8ZnQkdsRdpty-77jEbB1rPhCRJqGyzOb49GNuZBgqI/exec';
+  SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwrFqkHR8d8A1w8CfQarSps010sauhpzxklfQB_qksreIH0sIR4FtAeTJFsnUPO9xM/exec';
   localStorage.setItem('sheetsUrl', SHEETS_URL);
   if (document.getElementById('sheetsUrl')) {
     document.getElementById('sheetsUrl').value = SHEETS_URL;
@@ -342,6 +343,8 @@ function navigate(page) {
     checkWhatsAppStatus();
     checkWppSidebarStatus();
   }
+  if (page === 'new-leads') loadNewLeads();
+  if (page === 'kanban') renderKanban();
 
 }
 
@@ -1449,3 +1452,212 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     }
   });
 });
+
+
+// ── NOVOS LEADS ──
+let discardedLeads = [];
+try { discardedLeads = JSON.parse(localStorage.getItem('pf_discarded') || '[]'); } catch {}
+
+function saveLeadHunterUrl() {
+  const url = document.getElementById('leadHunterUrl').value.trim();
+  if (!url) { showToast('⚠️ Cole a URL do LeadHunter!', 'error'); return; }
+  localStorage.setItem('lh_sheets_url', url);
+  showToast('✅ URL salva!');
+}
+
+async function loadNewLeads() {
+  const url = localStorage.getItem('lh_sheets_url');
+  const urlInput = document.getElementById('leadHunterUrl');
+  if (urlInput && url) urlInput.value = url;
+
+  const container = document.getElementById('newLeadsList');
+  const empty = document.getElementById('newLeadsEmpty');
+
+  if (!url) {
+    empty.style.display = 'block';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)">⏳ Carregando leads...</div>';
+  empty.style.display = 'none';
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const rows = data.rows || [];
+
+    if (!rows.length) {
+      container.innerHTML = '';
+      empty.style.display = 'block';
+      empty.querySelector('p').textContent = '📭 Nenhum lead encontrado na base do LeadHunter';
+      return;
+    }
+
+    // Filtra já aprovados (na carteira) e descartados
+    const existingPhones = new Set(clients.map(c => (c.whatsapp || c.telefone || '').replace(/\D/g,'')));
+    const leads = rows
+      .filter(r => r[0] && !discardedLeads.includes(r[5]))
+      .filter(r => {
+        const phone = (r[1] || '').replace(/\D/g,'');
+        return !existingPhones.has(phone);
+      })
+      .map(r => ({
+        nome: r[0] || '—',
+        telefone: r[1] || '',
+        endereco: r[2] || '',
+        avaliacao: r[3] || '',
+        site: r[4] || '',
+        placeId: r[5] || '',
+        data: r[6] || ''
+      }));
+
+    document.getElementById('nlTotal').textContent = leads.length;
+    document.getElementById('newLeadsStats').style.display = 'flex';
+
+    if (!leads.length) {
+      container.innerHTML = '<div class="empty-state"><p>🎉 Todos os leads já foram processados!</p></div>';
+      return;
+    }
+
+    container.innerHTML = leads.map(l => renderLeadCard(l)).join('');
+
+  } catch(e) {
+    container.innerHTML = '<div class="empty-state"><p>❌ Erro ao carregar leads. Verifique a URL.</p></div>';
+  }
+}
+
+function renderLeadCard(l) {
+  const phone = (l.telefone || '').replace(/\D/g,'');
+  const wppLink = phone ? `https://wa.me/${phone}` : '';
+  return `
+  <div class="client-card" id="lead-${l.placeId.replace(/[^a-z0-9]/gi,'_')}">
+    <div class="client-top">
+      <div>
+        <div class="client-name">${l.nome}</div>
+        <div class="client-meta">
+          ${l.telefone ? `📞 ${l.telefone}` : ''}
+          ${l.endereco ? ` · 📍 ${l.endereco}` : ''}
+          ${l.avaliacao && l.avaliacao !== '—' ? ` · ⭐ ${l.avaliacao}` : ''}
+        </div>
+      </div>
+      <span class="temp-badge badge-new">🆕 Novo</span>
+    </div>
+    <div class="client-actions">
+      ${wppLink ? `<a href="${wppLink}" target="_blank" class="btn btn-whatsapp">💬 WhatsApp</a>` : ''}
+      <button class="btn btn-success" onclick="approveLead(${JSON.stringify(l).replace(/"/g,'&quot;')})">✅ Aprovar</button>
+      <button class="btn btn-danger" onclick="discardLead('${l.placeId}')">❌ Descartar</button>
+      ${l.site ? `<a href="${l.site.startsWith('http')?l.site:'https://'+l.site}" target="_blank" class="btn btn-outline" style="font-size:0.78rem">🌐 Site</a>` : ''}
+    </div>
+  </div>`;
+}
+
+function approveLead(l) {
+  const newClient = {
+    id: generateId(),
+    empresa: l.nome,
+    cnpj: '',
+    contato: '',
+    telefone: l.telefone,
+    email: '',
+    whatsapp: (l.telefone || '').replace(/\D/g,''),
+    obs: l.endereco ? `Endereço: ${l.endereco}` : '',
+    lastContact: null,
+    lastPurchase: null,
+    purchaseCount: 0,
+    createdAt: today(),
+    history: []
+  };
+  clients.push(newClient);
+  saveToStorage();
+
+  // Move para kanban em contato
+  const kanban = JSON.parse(localStorage.getItem('pf_kanban') || '{}');
+  if (!kanban.contato) kanban.contato = [];
+  kanban.contato.push({ id: newClient.id, nome: l.nome, telefone: l.telefone, stage: 'contato', createdAt: today() });
+  localStorage.setItem('pf_kanban', JSON.stringify(kanban));
+
+  const cardId = 'lead-' + l.placeId.replace(/[^a-z0-9]/gi,'_');
+  const card = document.getElementById(cardId);
+  if (card) card.remove();
+
+  const approved = parseInt(document.getElementById('nlApproved')?.textContent || '0') + 1;
+  if (document.getElementById('nlApproved')) document.getElementById('nlApproved').textContent = approved;
+
+  showToast(`✅ ${l.nome} aprovado e adicionado à carteira!`);
+}
+
+function discardLead(placeId) {
+  discardedLeads.push(placeId);
+  localStorage.setItem('pf_discarded', JSON.stringify(discardedLeads));
+  const cardId = 'lead-' + placeId.replace(/[^a-z0-9]/gi,'_');
+  const card = document.getElementById(cardId);
+  if (card) card.remove();
+  const disc = parseInt(document.getElementById('nlDiscarded')?.textContent || '0') + 1;
+  if (document.getElementById('nlDiscarded')) document.getElementById('nlDiscarded').textContent = disc;
+  showToast('❌ Lead descartado');
+}
+
+function approveAll() {
+  const cards = document.querySelectorAll('#newLeadsList .client-card');
+  if (!cards.length) { showToast('⚠️ Nenhum lead para aprovar!', 'error'); return; }
+  if (!confirm(`Aprovar todos os ${cards.length} leads visíveis?`)) return;
+  document.querySelectorAll('#newLeadsList .btn-success').forEach(btn => btn.click());
+}
+
+// ── KANBAN ──
+function renderKanban() {
+  const kanban = JSON.parse(localStorage.getItem('pf_kanban') || '{}');
+  const stages = ['contato','interesse','proposta','fechado'];
+
+  stages.forEach(stage => {
+    const items = kanban[stage] || [];
+    const container = document.getElementById('kb-' + stage);
+    const counter = document.getElementById('kb-' + stage + '-count');
+    if (counter) counter.textContent = items.length;
+    if (!container) return;
+
+    if (!items.length) {
+      container.innerHTML = '<div style="text-align:center;font-size:0.8rem;color:var(--text3);padding:1rem">Nenhum lead aqui</div>';
+      return;
+    }
+
+    container.innerHTML = items.map(item => `
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:0.75rem">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.4rem">${item.nome}</div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-bottom:0.6rem">${item.telefone || ''}</div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+          ${item.telefone ? `<a href="https://wa.me/${(item.telefone||'').replace(/\D/g,'')}" target="_blank" style="font-size:0.72rem;padding:3px 8px;background:rgba(0,200,83,0.15);color:#00c853;border-radius:6px;text-decoration:none">💬 WA</a>` : ''}
+          ${stage !== 'fechado' ? `<button onclick="moveKanban('${item.id}','${stage}')" style="font-size:0.72rem;padding:3px 8px;background:var(--bg4);color:var(--text2);border:1px solid var(--border);border-radius:6px;cursor:pointer">➡️ Avançar</button>` : ''}
+          <button onclick="removeKanban('${item.id}','${stage}')" style="font-size:0.72rem;padding:3px 8px;background:rgba(255,77,106,0.1);color:#ff4d6a;border:none;border-radius:6px;cursor:pointer">✕</button>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function moveKanban(id, currentStage) {
+  const stages = ['contato','interesse','proposta','fechado'];
+  const nextStage = stages[stages.indexOf(currentStage) + 1];
+  if (!nextStage) return;
+
+  const kanban = JSON.parse(localStorage.getItem('pf_kanban') || '{}');
+  const item = (kanban[currentStage] || []).find(i => i.id === id);
+  if (!item) return;
+
+  kanban[currentStage] = (kanban[currentStage] || []).filter(i => i.id !== id);
+  if (!kanban[nextStage]) kanban[nextStage] = [];
+  item.stage = nextStage;
+  kanban[nextStage].push(item);
+
+  localStorage.setItem('pf_kanban', JSON.stringify(kanban));
+  renderKanban();
+  showToast(`✅ Movido para ${nextStage}!`);
+}
+
+function removeKanban(id, stage) {
+  const kanban = JSON.parse(localStorage.getItem('pf_kanban') || '{}');
+  kanban[stage] = (kanban[stage] || []).filter(i => i.id !== id);
+  localStorage.setItem('pf_kanban', JSON.stringify(kanban));
+  renderKanban();
+  showToast('🗑️ Removido do kanban');
+}
