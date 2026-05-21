@@ -1481,8 +1481,7 @@ async function loadNewLeads() {
   if (empty) empty.style.display = 'none';
 
   try {
-    const proxyUrl = SHEETS_URL + '?action=getLeads&url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl, { redirect: 'follow', mode: 'cors' });
+    const res = await fetch(url);
     const json = await res.json();
     const rows = json.rows || [];
 
