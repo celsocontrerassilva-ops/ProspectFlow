@@ -165,9 +165,9 @@
 <!-- SIDEBAR -->
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <span class="logo-icon">🔧</span>
+    <span class="logo-icon">⚡</span>
     <div>
-      <span class="logo-text">AutoPeças<br><small>CRM B2B</small></span>
+      <span class="logo-text">Prospect<br><small>Flow</small></span>
       <div id="wppSidebarStatus" style="font-size:0.72rem;margin-top:0.2rem;color:#ef4444">🔴 WhatsApp desconectado</div>
     </div>
   </div>
@@ -175,6 +175,8 @@
     <li><a href="#" class="nav-link active" data-page="dashboard" onclick="navigate('dashboard')">🏠 Dashboard</a></li>
     <li><a href="#" class="nav-link" data-page="contacts-day" onclick="navigate('contacts-day')">🎯 Contatos do Dia</a></li>
     <li><a href="#" class="nav-link" data-page="clients" onclick="navigate('clients')">👥 Clientes</a></li>
+    <li><a href="#" class="nav-link" data-page="new-leads" onclick="navigate('new-leads')">🎯 Novos Leads</a></li>
+    <li><a href="#" class="nav-link" data-page="kanban" onclick="navigate('kanban')">🗂️ Kanban</a></li>
     <li><a href="#" class="nav-link" data-page="ranking" onclick="navigate('ranking')">🏆 Ranking</a></li>
     <li><a href="#" class="nav-link" data-page="automation" onclick="navigate('automation')">🤖 Automação</a></li>
     <li><a href="#" class="nav-link" data-page="config" onclick="navigate('config')">⚙️ Configurações</a></li>
@@ -437,6 +439,77 @@
         <button class="btn btn-outline" onclick="exportLocalData()">📤 Exportar Backup</button>
         <button class="btn btn-danger-outline" onclick="clearAllData()">🗑️ Limpar Todos os Dados</button>
       </div>
+    </div>
+  </section>
+
+  <!-- NOVOS LEADS PAGE -->
+  <section id="page-new-leads" class="page">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <h1>🎯 Novos Leads</h1>
+        <p class="page-subtitle">Leads importados do LeadHunter — aprove ou descarte</p>
+      </div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <button class="btn btn-outline" onclick="loadNewLeads()">🔄 Atualizar</button>
+        <button class="btn btn-primary" onclick="approveAll()">✅ Aprovar Todos</button>
+      </div>
+    </div>
+    <div id="newLeadsStats" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1.25rem;margin-bottom:1rem;display:flex;gap:2rem;flex-wrap:wrap">
+      <span>📦 Total: <strong id="nlTotal">0</strong></span>
+      <span>✅ Aprovados hoje: <strong id="nlApproved">0</strong></span>
+      <span>❌ Descartados: <strong id="nlDiscarded">0</strong></span>
+    </div>
+    <div style="margin-bottom:1rem">
+      <input type="text" id="leadHunterUrl" class="search-input" placeholder="🔗 URL do Google Sheets do LeadHunter..." style="width:100%;max-width:600px" />
+      <button class="btn btn-outline" onclick="saveLeadHunterUrl()" style="margin-left:0.5rem">💾 Salvar URL</button>
+    </div>
+    <div id="newLeadsList" class="clients-list"></div>
+    <div id="newLeadsEmpty" class="empty-state">
+      <p>🎯 Configure a URL do LeadHunter e clique em Atualizar</p>
+      <button class="btn btn-primary" onclick="loadNewLeads()">🔄 Buscar Leads</button>
+    </div>
+  </section>
+
+  <!-- KANBAN PAGE -->
+  <section id="page-kanban" class="page">
+    <div class="page-header">
+      <h1>🗂️ Kanban</h1>
+      <p class="page-subtitle">Acompanhe o pipeline de prospecção</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;align-items:start">
+      
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:600;font-size:0.9rem">📥 Em Contato</span>
+          <span id="kb-contato-count" style="background:rgba(91,143,255,0.2);color:#5b8fff;font-size:0.75rem;padding:2px 8px;border-radius:20px">0</span>
+        </div>
+        <div id="kb-contato" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem;min-height:100px"></div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:600;font-size:0.9rem">💬 Interessado</span>
+          <span id="kb-interesse-count" style="background:rgba(0,229,160,0.2);color:#00e5a0;font-size:0.75rem;padding:2px 8px;border-radius:20px">0</span>
+        </div>
+        <div id="kb-interesse" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem;min-height:100px"></div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:600;font-size:0.9rem">🤝 Proposta</span>
+          <span id="kb-proposta-count" style="background:rgba(255,200,68,0.2);color:#ffc844;font-size:0.75rem;padding:2px 8px;border-radius:20px">0</span>
+        </div>
+        <div id="kb-proposta" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem;min-height:100px"></div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:600;font-size:0.9rem">✅ Fechado</span>
+          <span id="kb-fechado-count" style="background:rgba(0,200,83,0.2);color:#00c853;font-size:0.75rem;padding:2px 8px;border-radius:20px">0</span>
+        </div>
+        <div id="kb-fechado" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem;min-height:100px"></div>
+      </div>
+
     </div>
   </section>
 
