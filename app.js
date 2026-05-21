@@ -37,7 +37,7 @@ let clients = [];
 let pendingDeleteId = null;
 let editingClientId = null;
 let importBuffer = [];
-let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwrFqkHR8d8A1w8CfQarSps010sauhpzxklfQB_qksreIH0sIR4FtAeTJFsnUPO9xM/exec';
+let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwJHNvokd1F0rvVmZcUvy4iqM5Jc01_R6Bot6OW8xUNENYInE4WLWvRr_ccvMjHiIqP/exec';
 
 // ---- EVOLUTION API CONFIG ----
 const EVOLUTION_URL = 'https://evolution-api-production-da04e.up.railway.app';
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
   // Sempre usa URL do código — ignora localStorage
-  SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwrFqkHR8d8A1w8CfQarSps010sauhpzxklfQB_qksreIH0sIR4FtAeTJFsnUPO9xM/exec';
+  SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwJHNvokd1F0rvVmZcUvy4iqM5Jc01_R6Bot6OW8xUNENYInE4WLWvRr_ccvMjHiIqP/exec';
   localStorage.setItem('sheetsUrl', SHEETS_URL);
   if (document.getElementById('sheetsUrl')) {
     document.getElementById('sheetsUrl').value = SHEETS_URL;
@@ -1483,7 +1483,8 @@ async function loadNewLeads() {
   empty.style.display = 'none';
 
   try {
-    const res = await fetch(url);
+    const proxyUrl = SHEETS_URL + '?action=getLeads&url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
     const data = await res.json();
     const rows = data.rows || [];
 
