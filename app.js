@@ -1463,10 +1463,7 @@ function saveLeadHunterUrl() {
   showToast('✅ URL salva!');
 }
 
-let loadingLeads = false;
 async function loadNewLeads() {
-  if (loadingLeads) return;
-  loadingLeads = true;
   const url = localStorage.getItem('lh_sheets_url');
   const urlInput = document.getElementById('leadHunterUrl');
   if (urlInput && url) urlInput.value = url;
@@ -1484,10 +1481,7 @@ async function loadNewLeads() {
   if (empty) empty.style.display = 'none';
 
   try {
-    const res = await fetch(url);
-    const text = await res.text();
-    let json;
-    try { json = JSON.parse(text); } catch(e) { throw new Error('JSON inválido'); }
+    const json = await fetchJSONP(url + '&callback=__lhcb');
     const rows = json.rows || [];
 
     if (!rows.length) {
@@ -1531,9 +1525,34 @@ async function loadNewLeads() {
 
   } catch(e) {
     if (container) container.innerHTML = '<div class="empty-state"><p>❌ Erro ao carregar leads. Verifique a URL.</p></div>';
-  } finally {
-    loadingLeads = false;
   }
+}
+
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__lhcb_' + Date.now();
+    const script = document.createElement('script');
+    const cleanUrl = url.replace('&callback=__lhcb', '');
+    script.src = cleanUrl + '&callback=' + cbName;
+    window[cbName] = (data) => {
+      delete window[cbName];
+      document.head.removeChild(script);
+      resolve(data);
+    };
+    script.onerror = () => {
+      delete window[cbName];
+      try { document.head.removeChild(script); } catch(e) {}
+      reject(new Error('Erro JSONP'));
+    };
+    setTimeout(() => {
+      if (window[cbName]) {
+        delete window[cbName];
+        try { document.head.removeChild(script); } catch(e) {}
+        reject(new Error('Timeout'));
+      }
+    }, 15000);
+    document.head.appendChild(script);
+  });
 }
 
 function renderLeadCard(l) {
