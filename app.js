@@ -1463,7 +1463,10 @@ function saveLeadHunterUrl() {
   showToast('✅ URL salva!');
 }
 
+let loadingLeads = false;
 async function loadNewLeads() {
+  if (loadingLeads) return;
+  loadingLeads = true;
   const url = localStorage.getItem('lh_sheets_url');
   const urlInput = document.getElementById('leadHunterUrl');
   if (urlInput && url) urlInput.value = url;
@@ -1482,7 +1485,9 @@ async function loadNewLeads() {
 
   try {
     const res = await fetch(url);
-    const json = await res.json();
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch(e) { throw new Error('JSON inválido'); }
     const rows = json.rows || [];
 
     if (!rows.length) {
@@ -1526,6 +1531,8 @@ async function loadNewLeads() {
 
   } catch(e) {
     if (container) container.innerHTML = '<div class="empty-state"><p>❌ Erro ao carregar leads. Verifique a URL.</p></div>';
+  } finally {
+    loadingLeads = false;
   }
 }
 
