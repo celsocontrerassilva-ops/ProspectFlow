@@ -1484,8 +1484,10 @@ async function loadNewLeads() {
 
   try {
     const proxyUrl = SHEETS_URL + '?action=getLeads&url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl);
-    const data = await res.json();
+    const res = await fetch(proxyUrl, { redirect: 'follow', mode: 'cors' });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { throw new Error('Resposta inválida do servidor'); }
     const rows = data.rows || [];
 
     if (!rows.length) {
