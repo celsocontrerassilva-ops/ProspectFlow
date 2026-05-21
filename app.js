@@ -38,6 +38,7 @@ let pendingDeleteId = null;
 let editingClientId = null;
 let importBuffer = [];
 let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwJHNvokd1F0rvVmZcUvy4iqM5Jc01_R6Bot6OW8xUNENYInE4WLWvRr_ccvMjHiIqP/exec';
+const PROXY_URL = 'https://script.google.com/macros/s/AKfycbwE58OCqe7nYWvXV1aEH0UekU4TX2i7HLCjl-CceCCMinr4U3YgHrTqchw9zxD8CM8/exec';
 
 // ---- EVOLUTION API CONFIG ----
 const EVOLUTION_URL = 'https://evolution-api-production-da04e.up.railway.app';
@@ -1483,8 +1484,8 @@ async function loadNewLeads() {
   empty.style.display = 'none';
 
   try {
-    const proxyUrl = SHEETS_URL + '?action=getLeads&url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl, { redirect: 'follow', mode: 'cors' });
+    const proxyUrl = PROXY_URL + '?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl, { redirect: 'follow' });
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); } catch(e) { throw new Error('Resposta inválida do servidor'); }
